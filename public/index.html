@@ -299,12 +299,16 @@ function connectToRoom(name) {
     });
   });
 
-  // Map selector — optimistic update, then sync to server
+  // Track selected map locally — source of truth for this client
+  let selectedMap = 'field';
+
+  // Map selector — optimistic update + sync to server
   document.querySelectorAll('.map-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      setActiveMap(btn.dataset.map);
+      selectedMap = btn.dataset.map;
+      setActiveMap(selectedMap);
       if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'set_map', map: btn.dataset.map }));
+        ws.send(JSON.stringify({ type: 'set_map', map: selectedMap }));
       }
     });
   });
@@ -317,9 +321,11 @@ function connectToRoom(name) {
     const msg = JSON.parse(e.data);
     if (msg.type === 'room_state') {
       myId = msg.id; myColor = msg.color;
+      selectedMap = msg.map;
       setActiveMap(msg.map);
       renderPlayerList(msg.players);
     } else if (msg.type === 'room_update') {
+      selectedMap = msg.map;
       setActiveMap(msg.map);
       renderPlayerList(msg.players);
     } else if (msg.type === 'game_init') {
@@ -332,8 +338,11 @@ function connectToRoom(name) {
     document.getElementById('btn-play').disabled = true;
   });
 
+  // Send map with enter_game to guarantee server uses the correct one
   document.getElementById('btn-play').addEventListener('click', () => {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'enter_game' }));
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'enter_game', map: selectedMap }));
+    }
   });
 }
 

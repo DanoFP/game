@@ -88,6 +88,8 @@ wss.on('connection', (ws, req) => {
         }
 
       } else if (msg.type === 'enter_game') {
+        // Client sends its confirmed map selection — apply it before building game_init
+        if (msg.map && VALID_MAPS.includes(msg.map)) room.map = msg.map;
         p.inGame = true;
         p.x = (Math.random() - 0.5) * 20;
         p.y = 0;
