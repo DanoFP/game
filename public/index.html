@@ -389,7 +389,7 @@ function addBox(scene, x, y, z, w, h, d, mat) {
 function rnd(min, max) { return min + Math.random() * (max - min); }
 
 // ── MAP: FIELD ────────────────────────────────────────────────────────────────
-function buildField(scene) {
+function buildField(scene, { phys, wall, boundary, staircase }) {
   scene.background = new THREE.Color(0x87ceeb);
   scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
 
@@ -419,48 +419,51 @@ function buildField(scene) {
   const trunkMat  = new THREE.MeshLambertMaterial({ color: 0x6b4226 });
   const leavesMat = new THREE.MeshLambertMaterial({ color: 0x2d6a2d });
   const dark      = new THREE.MeshLambertMaterial({ color: 0x1e4f1e });
-  const positions = [];
+  const woodMat   = new THREE.MeshLambertMaterial({ color: 0x9b6840 });
   for (let i = 0; i < 35; i++) {
-    let x, z;
-    do { x = rnd(-80, 80); z = rnd(-80, 80); }
-    while (Math.hypot(x, z) < 12); // keep center clear
-    positions.push([x, z]);
+    let tx, tz;
+    do { tx = rnd(-80, 80); tz = rnd(-80, 80); }
+    while (Math.hypot(tx, tz) < 12);
 
     const h = rnd(2, 5);
+    // Trunk: visible cylinder + box collider
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, h, 6), trunkMat);
-    trunk.position.set(x, h / 2, z); trunk.castShadow = true;
+    trunk.position.set(tx, h / 2, tz); trunk.castShadow = true;
     scene.add(trunk);
+    wall(tx, h / 2, tz, 0.4, h, 0.4);
 
+    // Canopy (visual only)
     const cone = new THREE.Mesh(new THREE.ConeGeometry(rnd(1, 2), rnd(2.5, 4.5), 7), Math.random() > 0.4 ? leavesMat : dark);
-    cone.position.set(x, h + 1.5, z); cone.castShadow = true;
+    cone.position.set(tx, h + 1.5, tz); cone.castShadow = true;
     scene.add(cone);
-  }
 
-  // Hay bales
-  const hayMat = new THREE.MeshLambertMaterial({ color: 0xc8a63a });
-  for (let i = 0; i < 10; i++) {
-    const bale = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.9), hayMat);
-    bale.position.set(rnd(-60, 60), 0.45, rnd(-60, 60));
-    bale.rotation.y = rnd(0, Math.PI); bale.castShadow = true;
-    scene.add(bale);
-  }
-
-  // Fence posts
-  const fenceMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
-  for (let i = -5; i <= 5; i++) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.12), fenceMat);
-    post.position.set(i * 3, 0.6, 25); scene.add(post);
-    if (i < 5) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(3, 0.08, 0.06), fenceMat);
-      rail.position.set(i * 3 + 1.5, 0.9, 25); scene.add(rail);
-      const rail2 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.08, 0.06), fenceMat);
-      rail2.position.set(i * 3 + 1.5, 0.5, 25); scene.add(rail2);
+    // Climbable staircase on +X side for tall trees
+    if (h > 3.2) {
+      staircase(tx + 0.25, tz, 0.9, h * 0.9, woodMat, 1, 0);
     }
   }
+
+  // Hay bales (collidable)
+  const hayMat = new THREE.MeshLambertMaterial({ color: 0xc8a63a });
+  for (let i = 0; i < 10; i++) {
+    phys(rnd(-60, 60), 0.45, rnd(-60, 60), 1.4, 0.9, 0.9, hayMat);
+  }
+
+  // Fence (collidable)
+  const fenceMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+  for (let i = -5; i <= 5; i++) {
+    phys(i * 3, 0.6, 25, 0.12, 1.2, 0.12, fenceMat);
+    if (i < 5) {
+      phys(i * 3 + 1.5, 0.9, 25, 3, 0.08, 0.06, fenceMat);
+      phys(i * 3 + 1.5, 0.5, 25, 3, 0.08, 0.06, fenceMat);
+    }
+  }
+
+  boundary(90);
 }
 
 // ── MAP: CITY ────────────────────────────────────────────────────────────────
-function buildCity(scene) {
+function buildCity(scene, { phys, wall, boundary, staircase }) {
   scene.background = new THREE.Color(0x05050f);
   scene.fog = new THREE.Fog(0x05050f, 30, 130);
 
@@ -493,40 +496,46 @@ function buildCity(scene) {
     new THREE.MeshLambertMaterial({ color: 0x221a1a }),
     new THREE.MeshLambertMaterial({ color: 0x1a2820 }),
   ];
-  const windowMat = new THREE.MeshBasicMaterial({ color: 0xffdd88 });
+  const stairMat   = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+  const windowMat  = new THREE.MeshBasicMaterial({ color: 0xffdd88 });
   const windowMatB = new THREE.MeshBasicMaterial({ color: 0x88aaff });
 
   const GRID = [-60, -40, -20, 20, 40, 60];
   for (const bx of GRID) {
     for (const bz of GRID) {
-      if (Math.abs(bx) < 12 && Math.abs(bz) < 12) continue; // clear center
-      if (Math.random() < 0.15) continue; // skip some for roads
+      if (Math.abs(bx) < 12 && Math.abs(bz) < 12) continue;
+      if (Math.random() < 0.15) continue;
 
       const w = rnd(5, 12); const h = rnd(6, 35); const d = rnd(5, 12);
       const ox = rnd(-4, 4); const oz = rnd(-4, 4);
+      const cx = bx + ox, cz = bz + oz;
       const mat = buildingMats[Math.floor(Math.random() * buildingMats.length)];
-      addBox(scene, bx + ox, h / 2, bz + oz, w, h, d, mat);
+      phys(cx, h / 2, cz, w, h, d, mat);
 
-      // Windows: scatter small emissive planes on building face
+      // Windows (visual only)
       const wm = Math.random() > 0.5 ? windowMat : windowMatB;
       const floors = Math.floor(h / 2.5);
       for (let fl = 0; fl < floors; fl++) {
         for (let col = 0; col < 2; col++) {
-          if (Math.random() < 0.35) continue; // some dark windows
+          if (Math.random() < 0.35) continue;
           const win = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.5), wm);
-          win.position.set(bx + ox + w / 2 + 0.02, 1.5 + fl * 2.5, bz + oz + (col - 0.5) * 1.8);
+          win.position.set(cx + w / 2 + 0.02, 1.5 + fl * 2.5, cz + (col - 0.5) * 1.8);
           win.rotation.y = -Math.PI / 2;
           scene.add(win);
         }
       }
+
+      // Staircase on +X face for tall buildings
+      if (h > 9) {
+        staircase(cx + w / 2 + 0.02, cz, Math.min(d * 0.8, 4), h, stairMat, 1, 0);
+      }
     }
   }
 
-  // Street lights
-  const poleMat  = new THREE.MeshLambertMaterial({ color: 0x334455 });
-  const bulbMat  = new THREE.MeshBasicMaterial({ color: 0xffdd99 });
-  const lightPositions = [[-10,-10],[10,-10],[-10,10],[10,10],[-10,30],[10,30],[-30,-10],[30,10]];
-  for (const [lx, lz] of lightPositions) {
+  // Street lights (thin poles — visual only)
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0x334455 });
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffdd99 });
+  for (const [lx, lz] of [[-10,-10],[10,-10],[-10,10],[10,10],[-10,30],[10,30],[-30,-10],[30,10]]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 6, 6), poleMat);
     pole.position.set(lx, 3, lz); scene.add(pole);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), bulbMat);
@@ -534,10 +543,12 @@ function buildCity(scene) {
     const ptLight = new THREE.PointLight(0xffdd99, 5.0, 40);
     ptLight.position.set(lx, 6, lz); scene.add(ptLight);
   }
+
+  boundary(72);
 }
 
 // ── MAP: SPACESHIP ────────────────────────────────────────────────────────────
-function buildSpaceship(scene) {
+function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
   scene.background = new THREE.Color(0x000008);
   scene.fog = new THREE.FogExp2(0x000008, 0.012);
 
@@ -575,22 +586,21 @@ function buildSpaceship(scene) {
   const screenMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
   const redMat    = new THREE.MeshBasicMaterial({ color: 0xff3300 });
 
-  // Main corridor walls (Z axis)
-  addBox(scene, -14, 5, 0, 1, 10, 80, wallMat);
-  addBox(scene,  14, 5, 0, 1, 10, 80, wallMat);
-  // Cross corridor walls (X axis)
-  addBox(scene, 0, 5, -14, 60, 10, 1, wallMat);
-  addBox(scene, 0, 5,  14, 60, 10, 1, wallMat);
-  // Ceiling panels
-  addBox(scene, 0, 10.1, 0, 28, 0.3, 80, panelMat);
-  addBox(scene, 0, 10.1, 0, 60, 0.3, 28, panelMat);
+  // Corridor walls (collidable)
+  phys(-14, 5, 0, 1, 10, 80, wallMat);
+  phys( 14, 5, 0, 1, 10, 80, wallMat);
+  phys(0, 5, -14, 60, 10, 1, wallMat);
+  phys(0, 5,  14, 60, 10, 1, wallMat);
+  // Ceiling panels (collidable — block jump-through)
+  phys(0, 10.1, 0, 28, 0.3, 80, panelMat);
+  phys(0, 10.1, 0, 60, 0.3, 28, panelMat);
 
-  // Support pillars
+  // Support pillars (collidable)
   for (const [px, pz] of [[-12,20],[12,20],[-12,-20],[12,-20],[-12,0],[12,0]]) {
-    addBox(scene, px, 5, pz, 0.8, 10, 0.8, metalMat);
+    phys(px, 5, pz, 0.8, 10, 0.8, metalMat);
   }
 
-  // Ceiling light strips
+  // Ceiling light strips (visual only)
   const stripMat = new THREE.MeshBasicMaterial({ color: 0x4488ff });
   for (const sz of [-30,-10,10,30]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(26, 0.1, 0.4), stripMat);
@@ -605,15 +615,19 @@ function buildSpaceship(scene) {
     ptLight.position.set(sx, 9, 0); scene.add(ptLight);
   }
 
-  // Crates
+  // Crates (collidable)
   for (let i = 0; i < 14; i++) {
     const s = rnd(0.8, 1.8);
     const cx = rnd(-12, 12); const cz = rnd(-12, 12);
     if (Math.abs(cx) < 4 && Math.abs(cz) < 4) continue;
-    addBox(scene, cx, s / 2, cz, s, s, s, crateMat);
+    phys(cx, s / 2, cz, s, s, s, crateMat);
   }
 
-  // Control panels on walls
+  // Raised platform + staircase (lets you climb up)
+  phys(-8, 2, -8, 3, 4, 3, metalMat);
+  staircase(-8, -9.5, 2.5, 4, new THREE.MeshLambertMaterial({ color: 0x1a2233 }), 0, -1);
+
+  // Control panels (visual only)
   for (const [px, pz, ry] of [[-13, -5, Math.PI/2],[13, 5, -Math.PI/2],[0, -13, 0],[0, 13, Math.PI]]) {
     const panel = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 0.2), panelMat);
     panel.position.set(px, 1.8, pz); panel.rotation.y = ry; scene.add(panel);
@@ -647,8 +661,60 @@ function initThree(initData) {
   const scene  = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 500);
 
+  // ── Collision helpers ────────────────────────────────────────────────────
+  const colliders = [];
+  const HW = 0.38, PHEAD = 1.85; // player half-width, head height
+
+  function phys(cx, cy, cz, w, h, d, mat) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(cx, cy, cz);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    colliders.push({ minX: cx-w/2, maxX: cx+w/2, minY: cy-h/2, maxY: cy+h/2, minZ: cz-d/2, maxZ: cz+d/2 });
+    return m;
+  }
+
+  function wall(cx, cy, cz, w, h, d) {
+    colliders.push({ minX: cx-w/2, maxX: cx+w/2, minY: cy-h/2, maxY: cy+h/2, minZ: cz-d/2, maxZ: cz+d/2 });
+  }
+
+  function boundary(ext) {
+    const h = 30, t = 3;
+    wall(0, h/2,  ext + t/2, (ext + t) * 2, h, t);
+    wall(0, h/2, -(ext + t/2), (ext + t) * 2, h, t);
+    wall( ext + t/2, h/2, 0, t, h, (ext + t) * 2);
+    wall(-(ext + t/2), h/2, 0, t, h, (ext + t) * 2);
+  }
+
+  // Staircase: steps rise in Y, extend outward from (ox,oz) in direction (dx,dz)
+  // ox,oz = base point where stairs meet the object; steps spread away from it
+  function staircase(ox, oz, perpW, maxH, mat, dx, dz) {
+    const SH = 0.5, SD = 0.6;
+    const steps = Math.max(1, Math.round(maxH / SH));
+    for (let i = 1; i <= steps; i++) {
+      const dist = (steps - i + 0.5) * SD;
+      phys(
+        ox + dx * dist, (i * SH) / 2, oz + dz * dist,
+        Math.abs(dz) > 0 ? perpW : SD,
+        i * SH,
+        Math.abs(dx) > 0 ? perpW : SD,
+        mat
+      );
+    }
+  }
+
+  // Is the player box at (x, y, z) overlapping any collider?
+  function blocked(x, y, z) {
+    for (const c of colliders) {
+      if (x + HW > c.minX && x - HW < c.maxX &&
+          y + PHEAD > c.minY && y < c.maxY &&
+          z + HW > c.minZ && z - HW < c.maxZ) return true;
+    }
+    return false;
+  }
+
   // Build selected map
-  ({ field: buildField, city: buildCity, spaceship: buildSpaceship }[initData.map] || buildField)(scene);
+  ({ field: buildField, city: buildCity, spaceship: buildSpaceship }[initData.map] || buildField)(scene, { phys, wall, boundary, staircase });
 
   // ── Remote players ──────────────────────────────────────────────────────────
   const meshes = {};
@@ -745,6 +811,7 @@ function initThree(initData) {
 
   // ── Game loop ───────────────────────────────────────────────────────────────
   const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _move = new THREE.Vector3();
+  const STEP_UP = 0.52;
   let last = performance.now();
 
   (function animate() {
@@ -761,13 +828,59 @@ function initThree(initData) {
       if (keys['KeyS'] || keys['ArrowDown'])  _move.addScaledVector(_fwd,   -SPEED * dt);
       if (keys['KeyA'] || keys['ArrowLeft'])  _move.addScaledVector(_right,  -SPEED * dt);
       if (keys['KeyD'] || keys['ArrowRight']) _move.addScaledVector(_right,   SPEED * dt);
-      pos.x += _move.x; pos.z += _move.z;
 
+      // Horizontal X — with step-up
+      const prevX = pos.x;
+      pos.x += _move.x;
+      if (blocked(pos.x, pos.y, pos.z)) {
+        if (!blocked(pos.x, pos.y + STEP_UP, pos.z)) {
+          pos.y += STEP_UP; velY = 0; onGround = true;
+        } else { pos.x = prevX; }
+      }
+
+      // Horizontal Z — with step-up
+      const prevZ = pos.z;
+      pos.z += _move.z;
+      if (blocked(pos.x, pos.y, pos.z)) {
+        if (!blocked(pos.x, pos.y + STEP_UP, pos.z)) {
+          pos.y += STEP_UP; velY = 0; onGround = true;
+        } else { pos.z = prevZ; }
+      }
+
+      // Vertical — gravity, jump, land on top of obstacles
+      const prevY = pos.y;
       if (onGround && keys['Space']) { velY = JUMP_V; onGround = false; }
-      velY  += GRAVITY * dt; pos.y += velY * dt;
-      if (pos.y <= 0) { pos.y = 0; velY = 0; onGround = true; }
+      velY += GRAVITY * dt;
+      pos.y += velY * dt;
 
-      hudCoords.textContent = `x:${pos.x.toFixed(1)} z:${pos.z.toFixed(1)}`;
+      if (pos.y <= 0) {
+        pos.y = 0; velY = 0; onGround = true;
+      } else if (velY < 0 && blocked(pos.x, pos.y, pos.z)) {
+        // Landing on top of an obstacle — find the highest surface under feet
+        let top = -1;
+        for (const c of colliders) {
+          if (pos.x + HW > c.minX && pos.x - HW < c.maxX &&
+              pos.z + HW > c.minZ && pos.z - HW < c.maxZ &&
+              c.maxY <= prevY + 0.1 && c.maxY > top) top = c.maxY;
+        }
+        pos.y = top >= 0 ? top : prevY;
+        velY = 0; onGround = true;
+      } else if (velY > 0 && blocked(pos.x, pos.y, pos.z)) {
+        // Hit ceiling while jumping
+        pos.y = prevY; velY = 0;
+      } else {
+        // Check if still standing on something or fell off an edge
+        onGround = pos.y <= 0.02;
+        if (!onGround) {
+          for (const c of colliders) {
+            if (pos.x + HW > c.minX && pos.x - HW < c.maxX &&
+                pos.z + HW > c.minZ && pos.z - HW < c.maxZ &&
+                Math.abs(pos.y - c.maxY) < 0.08) { onGround = true; break; }
+          }
+        }
+      }
+
+      hudCoords.textContent = `x:${pos.x.toFixed(1)} y:${pos.y.toFixed(1)} z:${pos.z.toFixed(1)}`;
     }
 
     camera.position.set(pos.x, pos.y + 1.7, pos.z);
