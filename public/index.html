@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; font-family: monospace; }
+    canvas { display: block; }
+
+    #hud {
+      position: fixed; top: 12px; left: 12px;
+      color: #fff; font-size: 13px; text-shadow: 1px 1px 2px #000;
+      pointer-events: none; user-select: none;
+    }
+
+    #crosshair {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.8); font-size: 20px; line-height: 1;
+      pointer-events: none; user-select: none;
+    }
+
+    #overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: #fff; cursor: pointer; gap: 16px;
+    }
+    #overlay h1 { font-size: 32px; letter-spacing: 4px; }
+    #overlay p  { font-size: 14px; opacity: 0.6; }
+    #overlay .keys { font-size: 13px; opacity: 0.8; line-height: 2; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div id="overlay">
+  <h1>GAME</h1>
+  <p>Click to play</p>
+  <div class="keys">
+    W A S D &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look<br>
+    Space &mdash; Jump &nbsp;|&nbsp; Esc &mdash; Pause
+  </div>
+</div>
+
+<div id="hud">
+  <div id="status">Connecting...</div>
+  <div id="coords"></div>
+</div>
+
+<div id="crosshair">+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+// ─── Renderer ────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.BasicShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ─── Scene ───────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 500);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ─── Lighting ────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const sun = new THREE.DirectionalLight(0xfffbe0, 1.0);
+sun.position.set(60, 120, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 300;
+sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
+sun.shadow.camera.right = sun.shadow.camera.top = 80;
+scene.add(sun);
+
+// ─── World ───────────────────────────────────────────────────────────────────
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(500, 500),
+  new THREE.MeshLambertMaterial({ color: 0x4a7c59 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grid lines (optional visual reference)
+const grid = new THREE.GridHelper(500, 100, 0x000000, 0x000000);
+grid.material.opacity = 0.08;
+grid.material.transparent = true;
+scene.add(grid);
+
+// Static world objects
+const BOXES = [
+  { x:  10, z: -10, w: 3, h: 5, d: 3 },
+  { x: -15, z:   5, w: 2, h: 4, d: 2 },
+  { x:   5, z:  20, w: 4, h: 3, d: 4 },
+  { x:  -5, z: -20, w: 2, h: 6, d: 2 },
+  { x:  30, z:  10, w: 6, h: 2, d: 6 },
+  { x: -30, z: -15, w: 3, h: 3, d: 8 },
+  { x:  20, z: -30, w: 5, h: 4, d: 2 },
+];
+const wallMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+for (const b of BOXES) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
+  mesh.position.set(b.x, b.h / 2, b.z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+}
+
+// ─── Player helpers ───────────────────────────────────────────────────────────
+const playerMeshes = {}; // id -> { group, label }
+
+function createPlayerMesh(color) {
+  const mat = new THREE.MeshLambertMaterial({ color });
+  const group = new THREE.Group();
+
+  // Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), mat);
+  body.position.y = 0.6;
+  body.castShadow = true;
+  group.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), mat);
+  head.position.y = 1.55;
+  head.castShadow = true;
+  group.add(head);
+
+  // Eyes (white boxes)
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (const sx of [-0.15, 0.15]) {
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.05), eyeMat);
+    eye.position.set(sx, 1.58, 0.33);
+    group.add(eye);
+  }
+
+  return group;
+}
+
+function addRemotePlayer(id, data) {
+  if (playerMeshes[id]) return;
+  const group = createPlayerMesh(data.color);
+  group.position.set(data.x, data.y, data.z);
+  group.rotation.y = data.ry || 0;
+  scene.add(group);
+  playerMeshes[id] = group;
+}
+
+function removeRemotePlayer(id) {
+  if (!playerMeshes[id]) return;
+  scene.remove(playerMeshes[id]);
+  delete playerMeshes[id];
+}
+
+// ─── Local player state ───────────────────────────────────────────────────────
+const pos = new THREE.Vector3(0, 0, 0); // feet position
+let yaw = 0, pitch = 0;
+let velY = 0, onGround = true;
+const SPEED = 8, GRAVITY = -22, JUMP_V = 9;
+
+// ─── Pointer lock & controls ─────────────────────────────────────────────────
+const overlay = document.getElementById('overlay');
+let locked = false;
+
+overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+
+document.addEventListener('pointerlockchange', () => {
+  locked = !!document.pointerLockElement;
+  overlay.style.display = locked ? 'none' : 'flex';
+});
+
+document.addEventListener('mousemove', e => {
+  if (!locked) return;
+  yaw   -= e.movementX * 0.0022;
+  pitch -= e.movementY * 0.0022;
+  pitch  = Math.max(-1.48, Math.min(1.48, pitch));
+});
+
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Escape' && locked) document.exitPointerLock();
+});
+document.addEventListener('keyup', e => keys[e.code] = false);
+
+// ─── Network ─────────────────────────────────────────────────────────────────
+const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+const statusEl = document.getElementById('status');
+const coordsEl = document.getElementById('coords');
+
+let myId = null;
+let myColor = '#fff';
+let initialized = false;
+
+ws.addEventListener('open', () => statusEl.textContent = 'Connected | Players: 1');
+ws.addEventListener('close', () => statusEl.textContent = 'Disconnected - refresh to reconnect');
+
+ws.addEventListener('message', e => {
+  const msg = JSON.parse(e.data);
+
+  if (msg.type === 'init') {
+    myId = msg.id;
+    myColor = msg.color;
+    pos.set(msg.x, msg.y, msg.z);
+    for (const [id, data] of Object.entries(msg.players)) addRemotePlayer(id, data);
+    updateHud();
+    initialized = true;
+  }
+
+  else if (msg.type === 'join') {
+    addRemotePlayer(msg.id, msg);
+    updateHud();
+  }
+
+  else if (msg.type === 'leave') {
+    removeRemotePlayer(msg.id);
+    updateHud();
+  }
+
+  else if (msg.type === 'state') {
+    for (const [id, data] of Object.entries(msg.players)) {
+      if (id === myId) continue;
+      const group = playerMeshes[id];
+      if (!group) continue;
+      // Simple lerp for smooth remote movement
+      group.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
+      group.rotation.y = data.ry;
+    }
+  }
+});
+
+function updateHud() {
+  const total = Object.keys(playerMeshes).length + (myId ? 1 : 0);
+  statusEl.textContent = `#${myId} | Players: ${total}`;
+}
+
+// Send position at 20 Hz
+let lastSend = 0;
+function sendPos() {
+  if (!initialized || ws.readyState !== 1) return;
+  const now = performance.now();
+  if (now - lastSend < 50) return;
+  lastSend = now;
+  ws.send(JSON.stringify({ type: 'move', x: pos.x, y: pos.y, z: pos.z, ry: yaw }));
+}
+
+// ─── Game loop ────────────────────────────────────────────────────────────────
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _move = new THREE.Vector3();
+
+let last = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+
+  if (locked && initialized) {
+    // Movement direction from yaw
+    _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    _right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+    _move.set(0, 0, 0);
+
+    if (keys['KeyW'] || keys['ArrowUp'])    _move.addScaledVector(_fwd,   SPEED * dt);
+    if (keys['KeyS'] || keys['ArrowDown'])  _move.addScaledVector(_fwd,  -SPEED * dt);
+    if (keys['KeyA'] || keys['ArrowLeft'])  _move.addScaledVector(_right, -SPEED * dt);
+    if (keys['KeyD'] || keys['ArrowRight']) _move.addScaledVector(_right,  SPEED * dt);
+
+    pos.x += _move.x;
+    pos.z += _move.z;
+
+    // Gravity + jump
+    if (onGround && keys['Space']) { velY = JUMP_V; onGround = false; }
+    velY += GRAVITY * dt;
+    pos.y += velY * dt;
+
+    if (pos.y <= 0) { pos.y = 0; velY = 0; onGround = true; }
+
+    coordsEl.textContent = `x:${pos.x.toFixed(1)} y:${pos.y.toFixed(1)} z:${pos.z.toFixed(1)}`;
+  }
+
+  // Camera: first person, eyes at 1.7m above feet
+  camera.position.set(pos.x, pos.y + 1.7, pos.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+
+  sendPos();
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>
