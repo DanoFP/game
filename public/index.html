@@ -464,8 +464,8 @@ function buildCity(scene) {
   scene.background = new THREE.Color(0x05050f);
   scene.fog = new THREE.Fog(0x05050f, 30, 130);
 
-  scene.add(new THREE.AmbientLight(0x223355, 0.5));
-  scene.add(new THREE.HemisphereLight(0x334466, 0x111111, 0.4));
+  scene.add(new THREE.AmbientLight(0x5577aa, 1.4));
+  scene.add(new THREE.HemisphereLight(0x7799cc, 0x334455, 0.9));
 
   // Ground (asphalt)
   const ground = new THREE.Mesh(
@@ -531,7 +531,7 @@ function buildCity(scene) {
     pole.position.set(lx, 3, lz); scene.add(pole);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), bulbMat);
     bulb.position.set(lx, 6.2, lz); scene.add(bulb);
-    const ptLight = new THREE.PointLight(0xffcc77, 1.5, 18);
+    const ptLight = new THREE.PointLight(0xffdd99, 5.0, 40);
     ptLight.position.set(lx, 6, lz); scene.add(ptLight);
   }
 }
@@ -541,7 +541,8 @@ function buildSpaceship(scene) {
   scene.background = new THREE.Color(0x000008);
   scene.fog = new THREE.FogExp2(0x000008, 0.012);
 
-  scene.add(new THREE.AmbientLight(0x112244, 0.6));
+  scene.add(new THREE.AmbientLight(0x4466aa, 1.8));
+  scene.add(new THREE.HemisphereLight(0x5577cc, 0x112233, 0.8));
 
   // Stars
   const starVerts = [];
@@ -594,13 +595,13 @@ function buildSpaceship(scene) {
   for (const sz of [-30,-10,10,30]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(26, 0.1, 0.4), stripMat);
     strip.position.set(0, 9.8, sz); scene.add(strip);
-    const ptLight = new THREE.PointLight(0x2255ff, 1.2, 22);
+    const ptLight = new THREE.PointLight(0x66aaff, 4.0, 50);
     ptLight.position.set(0, 9, sz); scene.add(ptLight);
   }
   for (const sx of [-20, 0, 20]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 26), stripMat);
     strip.position.set(sx, 9.8, 0); scene.add(strip);
-    const ptLight = new THREE.PointLight(0x2255ff, 1.2, 22);
+    const ptLight = new THREE.PointLight(0x66aaff, 4.0, 50);
     ptLight.position.set(sx, 9, 0); scene.add(ptLight);
   }
 
@@ -623,7 +624,7 @@ function buildSpaceship(scene) {
                         1.9,
                         pz + (ry === 0 ? 0.11 : ry === Math.PI ? -0.11 : 0));
     screen.rotation.y = ry; scene.add(screen);
-    const glow = new THREE.PointLight(sc === screenMat ? 0x0088ff : 0xff2200, 0.8, 5);
+    const glow = new THREE.PointLight(sc === screenMat ? 0x0088ff : 0xff2200, 2.0, 12);
     glow.position.set(px, 2, pz); scene.add(glow);
   }
 }
