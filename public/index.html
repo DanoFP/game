@@ -299,9 +299,10 @@ function connectToRoom(name) {
     });
   });
 
-  // Map selector
+  // Map selector — optimistic update, then sync to server
   document.querySelectorAll('.map-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      setActiveMap(btn.dataset.map);
       if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({ type: 'set_map', map: btn.dataset.map }));
       }
