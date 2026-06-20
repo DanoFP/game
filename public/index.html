@@ -1,314 +1,531 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Game</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; font-family: monospace; }
+    body { background: #0c0c14; font-family: 'Courier New', monospace; color: #fff; overflow: hidden; }
     canvas { display: block; }
+    [hidden] { display: none !important; }
 
-    #hud {
-      position: fixed; top: 12px; left: 12px;
-      color: #fff; font-size: 13px; text-shadow: 1px 1px 2px #000;
-      pointer-events: none; user-select: none;
+    /* ── Screens ─────────────────────────────────────────────────── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
     }
 
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 40px 36px;
+      width: 360px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .logo { font-size: 38px; letter-spacing: 10px; text-align: center; font-weight: bold; }
+    .sub  { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.3); text-align: center; }
+
+    input[type="text"] {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      padding: 11px 14px;
+      color: #fff; font-family: inherit; font-size: 13px;
+      outline: none; transition: border-color .2s;
+      width: 100%;
+    }
+    input[type="text"]:focus { border-color: rgba(255,255,255,0.35); }
+    input[type="text"]::placeholder { color: rgba(255,255,255,0.25); }
+
+    .btn {
+      background: #fff; color: #0c0c14;
+      border: none; border-radius: 7px;
+      padding: 12px; width: 100%;
+      font-family: inherit; font-size: 12px;
+      font-weight: bold; letter-spacing: 2px;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+    }
+    .btn:hover  { opacity: .88; }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .3; cursor: default; }
+
+    .btn-ghost {
+      background: transparent; color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.07); opacity: 1; }
+
+    .divider { height: 1px; background: rgba(255,255,255,0.07); }
+
+    .or-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: rgba(255,255,255,0.2); font-size: 11px; letter-spacing: 1px;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+    }
+
+    #inp-room-code { text-transform: uppercase; letter-spacing: 4px; text-align: center; }
+
+    /* ── Lobby specifics ─────────────────────────────────────────── */
+    .room-header { text-align: center; }
+    .room-label  { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 4px; }
+    .room-code   { font-size: 30px; letter-spacing: 10px; font-weight: bold; }
+
+    .invite-row { display: flex; gap: 8px; }
+    .invite-row input { font-size: 10px; padding: 9px 12px; flex: 1; }
+    .invite-row .btn  { width: auto; padding: 9px 14px; font-size: 10px; flex-shrink: 0; }
+
+    #lobby-gate, #lobby-panel { display: flex; flex-direction: column; gap: 14px; }
+    .section-label { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); }
+
+    #player-list { display: flex; flex-direction: column; gap: 6px; min-height: 48px; }
+
+    .player-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 7px; font-size: 13px;
+    }
+    .p-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .p-name { flex: 1; }
+    .p-tag  {
+      font-size: 9px; letter-spacing: 1px;
+      color: rgba(255,255,255,0.3);
+      padding: 2px 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.06);
+    }
+    .p-tag.in-game { color: #2ecc71; background: rgba(46,204,113,.12); }
+
+    /* ── Game HUD ────────────────────────────────────────────────── */
+    #hud {
+      position: fixed; top: 12px; left: 14px;
+      font-size: 12px; line-height: 1.7;
+      text-shadow: 0 1px 3px #000;
+      pointer-events: none; user-select: none;
+    }
     #crosshair {
       position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      color: rgba(255,255,255,0.8); font-size: 20px; line-height: 1;
+      transform: translate(-50%,-50%);
+      color: rgba(255,255,255,.7); font-size: 18px;
       pointer-events: none; user-select: none;
     }
-
-    #overlay {
+    #ptr-overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.75);
+      background: rgba(0,0,0,.72);
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      color: #fff; cursor: pointer; gap: 16px;
+      gap: 10px; cursor: pointer;
     }
-    #overlay h1 { font-size: 32px; letter-spacing: 4px; }
-    #overlay p  { font-size: 14px; opacity: 0.6; }
-    #overlay .keys { font-size: 13px; opacity: 0.8; line-height: 2; text-align: center; }
+    #ptr-overlay h2 { font-size: 22px; letter-spacing: 6px; }
+    #ptr-overlay p  { font-size: 12px; color: rgba(255,255,255,.45); }
   </style>
 </head>
 <body>
 
-<div id="overlay">
-  <h1>GAME</h1>
-  <p>Click to play</p>
-  <div class="keys">
-    W A S D &mdash; Move &nbsp;|&nbsp; Mouse &mdash; Look<br>
-    Space &mdash; Jump &nbsp;|&nbsp; Esc &mdash; Pause
+<!-- ══════════════════════ LANDING ══════════════════════ -->
+<div id="s-landing" class="screen">
+  <div class="card">
+    <div class="logo">GAME</div>
+    <div class="sub">MULTIPLAYER 3D</div>
+    <div class="divider"></div>
+    <div class="section-label">CREAR SALA</div>
+    <input id="inp-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
+    <button class="btn" id="btn-create">CREAR SALA</button>
+    <div class="or-divider"><span>O</span></div>
+    <div class="section-label">UNIRSE A SALA</div>
+    <input id="inp-join-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
+    <input id="inp-room-code" type="text" placeholder="Código de sala" maxlength="6" autocomplete="off">
+    <button class="btn btn-ghost" id="btn-join-room">UNIRSE A SALA</button>
   </div>
 </div>
 
-<div id="hud">
-  <div id="status">Connecting...</div>
-  <div id="coords"></div>
+<!-- ══════════════════════ LOBBY ══════════════════════ -->
+<div id="s-lobby" class="screen" hidden>
+  <div class="card">
+
+    <!-- Gate: ask for name if joining via link -->
+    <div id="lobby-gate">
+      <div class="logo">GAME</div>
+      <div class="sub">UNIRSE A LA SALA</div>
+      <div class="divider"></div>
+      <input id="inp-join-name" type="text" placeholder="Tu nombre" maxlength="16" autocomplete="off">
+      <button class="btn" id="btn-join">UNIRSE</button>
+    </div>
+
+    <!-- Room panel: shown after WS connected -->
+    <div id="lobby-panel" hidden>
+      <div class="room-header">
+        <span class="room-label">CÓDIGO DE SALA</span>
+        <div class="room-code" id="room-code-display"></div>
+      </div>
+
+      <div class="invite-row">
+        <input type="text" id="invite-url" readonly>
+        <button class="btn btn-ghost" id="btn-copy">COPIAR</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-label">JUGADORES EN LA SALA</div>
+      <div id="player-list"></div>
+
+      <div class="divider"></div>
+
+      <button class="btn" id="btn-play">ENTRAR AL JUEGO</button>
+    </div>
+
+  </div>
 </div>
 
-<div id="crosshair">+</div>
+<!-- ══════════════════════ GAME ══════════════════════ -->
+<div id="s-game" hidden>
+  <div id="ptr-overlay">
+    <h2>GAME</h2>
+    <p>Click para jugar</p>
+    <p>WASD mover &nbsp;·&nbsp; Mouse mirar &nbsp;·&nbsp; Espacio saltar &nbsp;·&nbsp; Esc pausar</p>
+  </div>
+  <div id="hud">
+    <div id="hud-room"></div>
+    <div id="hud-coords"></div>
+  </div>
+  <div id="crosshair">+</div>
+</div>
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
-// ─── Renderer ────────────────────────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.BasicShadowMap;
-document.body.appendChild(renderer.domElement);
+'use strict';
 
-// ─── Scene ───────────────────────────────────────────────────────────────────
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
-
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 500);
-
-window.addEventListener('resize', () => {
-  renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-});
-
-// ─── Lighting ────────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const sun = new THREE.DirectionalLight(0xfffbe0, 1.0);
-sun.position.set(60, 120, 40);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 300;
-sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
-sun.shadow.camera.right = sun.shadow.camera.top = 80;
-scene.add(sun);
-
-// ─── World ───────────────────────────────────────────────────────────────────
-// Ground
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshLambertMaterial({ color: 0x4a7c59 })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// Grid lines (optional visual reference)
-const grid = new THREE.GridHelper(500, 100, 0x000000, 0x000000);
-grid.material.opacity = 0.08;
-grid.material.transparent = true;
-scene.add(grid);
-
-// Static world objects
-const BOXES = [
-  { x:  10, z: -10, w: 3, h: 5, d: 3 },
-  { x: -15, z:   5, w: 2, h: 4, d: 2 },
-  { x:   5, z:  20, w: 4, h: 3, d: 4 },
-  { x:  -5, z: -20, w: 2, h: 6, d: 2 },
-  { x:  30, z:  10, w: 6, h: 2, d: 6 },
-  { x: -30, z: -15, w: 3, h: 3, d: 8 },
-  { x:  20, z: -30, w: 5, h: 4, d: 2 },
-];
-const wallMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
-for (const b of BOXES) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
-  mesh.position.set(b.x, b.h / 2, b.z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
+// ─── Screen helpers ───────────────────────────────────────────────────────────
+const S = {
+  landing: document.getElementById('s-landing'),
+  lobby:   document.getElementById('s-lobby'),
+  game:    document.getElementById('s-game'),
+};
+function showScreen(name) {
+  for (const [k, el] of Object.entries(S)) el.hidden = k !== name;
 }
 
-// ─── Player helpers ───────────────────────────────────────────────────────────
-const playerMeshes = {}; // id -> { group, label }
+// ─── State ────────────────────────────────────────────────────────────────────
+const urlParams = new URLSearchParams(location.search);
+const roomId    = urlParams.get('room');
+let myName      = sessionStorage.getItem('playerName') || '';
+let ws, myId, myColor;
 
-function createPlayerMesh(color) {
-  const mat = new THREE.MeshLambertMaterial({ color });
-  const group = new THREE.Group();
+// ─── LANDING ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-create').addEventListener('click', createRoom);
+document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
+document.getElementById('btn-join-room').addEventListener('click', joinRoom);
+document.getElementById('inp-room-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 
-  // Body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), mat);
-  body.position.y = 0.6;
-  body.castShadow = true;
-  group.add(body);
-
-  // Head
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), mat);
-  head.position.y = 1.55;
-  head.castShadow = true;
-  group.add(head);
-
-  // Eyes (white boxes)
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  for (const sx of [-0.15, 0.15]) {
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.05), eyeMat);
-    eye.position.set(sx, 1.58, 0.33);
-    group.add(eye);
-  }
-
-  return group;
+function createRoom() {
+  const name = document.getElementById('inp-name').value.trim() || 'Player';
+  sessionStorage.setItem('playerName', name);
+  const id = Math.random().toString(36).slice(2, 8).toUpperCase();
+  location.href = `/?room=${id}`;
 }
 
-function addRemotePlayer(id, data) {
-  if (playerMeshes[id]) return;
-  const group = createPlayerMesh(data.color);
-  group.position.set(data.x, data.y, data.z);
-  group.rotation.y = data.ry || 0;
-  scene.add(group);
-  playerMeshes[id] = group;
+function joinRoom() {
+  const name = document.getElementById('inp-join-name').value.trim() || 'Player';
+  const code = document.getElementById('inp-room-code').value.trim().toUpperCase();
+  if (!code) { document.getElementById('inp-room-code').focus(); return; }
+  sessionStorage.setItem('playerName', name);
+  location.href = `/?room=${code}`;
 }
 
-function removeRemotePlayer(id) {
-  if (!playerMeshes[id]) return;
-  scene.remove(playerMeshes[id]);
-  delete playerMeshes[id];
+// ─── LOBBY ───────────────────────────────────────────────────────────────────
+if (roomId) {
+  showScreen('lobby');
+  if (myName) {
+    connectToRoom(myName);
+  }
+  // else: name gate is visible by default
+} else {
+  showScreen('landing');
 }
 
-// ─── Local player state ───────────────────────────────────────────────────────
-const pos = new THREE.Vector3(0, 0, 0); // feet position
-let yaw = 0, pitch = 0;
-let velY = 0, onGround = true;
-const SPEED = 8, GRAVITY = -22, JUMP_V = 9;
+document.getElementById('btn-join').addEventListener('click', joinWithName);
+document.getElementById('inp-join-name').addEventListener('keydown', e => { if (e.key === 'Enter') joinWithName(); });
 
-// ─── Pointer lock & controls ─────────────────────────────────────────────────
-const overlay = document.getElementById('overlay');
-let locked = false;
+function joinWithName() {
+  const name = document.getElementById('inp-join-name').value.trim() || 'Player';
+  sessionStorage.setItem('playerName', name);
+  connectToRoom(name);
+}
 
-overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+function connectToRoom(name) {
+  myName = name;
 
-document.addEventListener('pointerlockchange', () => {
-  locked = !!document.pointerLockElement;
-  overlay.style.display = locked ? 'none' : 'flex';
-});
+  // Swap gate → panel
+  document.getElementById('lobby-gate').hidden = true;
+  const panel = document.getElementById('lobby-panel');
+  panel.hidden = false;
 
-document.addEventListener('mousemove', e => {
-  if (!locked) return;
-  yaw   -= e.movementX * 0.0022;
-  pitch -= e.movementY * 0.0022;
-  pitch  = Math.max(-1.48, Math.min(1.48, pitch));
-});
+  // Fill static info
+  document.getElementById('room-code-display').textContent = roomId;
+  const inviteUrl = `${location.origin}/?room=${roomId}`;
+  document.getElementById('invite-url').value = inviteUrl;
 
-const keys = {};
-document.addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'Escape' && locked) document.exitPointerLock();
-});
-document.addEventListener('keyup', e => keys[e.code] = false);
+  // Copy button
+  const btnCopy = document.getElementById('btn-copy');
+  btnCopy.addEventListener('click', () => {
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      btnCopy.textContent = '✓ COPIADO';
+      setTimeout(() => { btnCopy.textContent = 'COPIAR'; }, 2000);
+    });
+  });
 
-// ─── Network ─────────────────────────────────────────────────────────────────
-const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${proto}//${location.host}/ws`);
+  // Connect WebSocket
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(roomId)}&name=${encodeURIComponent(name)}`);
 
-const statusEl = document.getElementById('status');
-const coordsEl = document.getElementById('coords');
+  ws.addEventListener('message', e => {
+    const msg = JSON.parse(e.data);
 
-let myId = null;
-let myColor = '#fff';
-let initialized = false;
-
-ws.addEventListener('open', () => statusEl.textContent = 'Connected | Players: 1');
-ws.addEventListener('close', () => statusEl.textContent = 'Disconnected - refresh to reconnect');
-
-ws.addEventListener('message', e => {
-  const msg = JSON.parse(e.data);
-
-  if (msg.type === 'init') {
-    myId = msg.id;
-    myColor = msg.color;
-    pos.set(msg.x, msg.y, msg.z);
-    for (const [id, data] of Object.entries(msg.players)) addRemotePlayer(id, data);
-    updateHud();
-    initialized = true;
-  }
-
-  else if (msg.type === 'join') {
-    addRemotePlayer(msg.id, msg);
-    updateHud();
-  }
-
-  else if (msg.type === 'leave') {
-    removeRemotePlayer(msg.id);
-    updateHud();
-  }
-
-  else if (msg.type === 'state') {
-    for (const [id, data] of Object.entries(msg.players)) {
-      if (id === myId) continue;
-      const group = playerMeshes[id];
-      if (!group) continue;
-      // Simple lerp for smooth remote movement
-      group.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
-      group.rotation.y = data.ry;
+    if (msg.type === 'room_state') {
+      myId    = msg.id;
+      myColor = msg.color;
+      renderPlayerList(msg.players);
+    } else if (msg.type === 'room_update') {
+      renderPlayerList(msg.players);
+    } else if (msg.type === 'game_init') {
+      startGame(msg);
     }
+  });
+
+  ws.addEventListener('close', () => {
+    document.getElementById('btn-play').textContent = 'DESCONECTADO';
+    document.getElementById('btn-play').disabled = true;
+  });
+
+  document.getElementById('btn-play').addEventListener('click', () => {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'enter_game' }));
+  });
+}
+
+function renderPlayerList(players) {
+  const list = document.getElementById('player-list');
+  list.innerHTML = '';
+  for (const [id, p] of Object.entries(players)) {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    const isMe = id === myId;
+    row.innerHTML =
+      `<span class="p-dot" style="background:${p.color}"></span>` +
+      `<span class="p-name">${p.name}${isMe ? ' <span style="opacity:.4">(tú)</span>' : ''}</span>` +
+      `<span class="p-tag ${p.inGame ? 'in-game' : ''}">${p.inGame ? 'EN JUEGO' : 'LOBBY'}</span>`;
+    list.appendChild(row);
   }
-});
-
-function updateHud() {
-  const total = Object.keys(playerMeshes).length + (myId ? 1 : 0);
-  statusEl.textContent = `#${myId} | Players: ${total}`;
 }
 
-// Send position at 20 Hz
-let lastSend = 0;
-function sendPos() {
-  if (!initialized || ws.readyState !== 1) return;
-  const now = performance.now();
-  if (now - lastSend < 50) return;
-  lastSend = now;
-  ws.send(JSON.stringify({ type: 'move', x: pos.x, y: pos.y, z: pos.z, ry: yaw }));
+// ─── GAME ─────────────────────────────────────────────────────────────────────
+let gameStarted = false;
+
+function startGame(initData) {
+  if (gameStarted) return;
+  gameStarted = true;
+  showScreen('game');
+  initThree(initData);
 }
 
-// ─── Game loop ────────────────────────────────────────────────────────────────
-const _fwd = new THREE.Vector3();
-const _right = new THREE.Vector3();
-const _move = new THREE.Vector3();
+function initThree(initData) {
+  // ── Renderer ────────────────────────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.BasicShadowMap;
+  document.getElementById('s-game').appendChild(renderer.domElement);
 
-let last = performance.now();
+  window.addEventListener('resize', () => {
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  });
 
-function animate() {
-  requestAnimationFrame(animate);
-  const now = performance.now();
-  const dt = Math.min((now - last) / 1000, 0.05);
-  last = now;
+  // ── Scene ───────────────────────────────────────────────────────────────────
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
 
-  if (locked && initialized) {
-    // Movement direction from yaw
-    _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-    _right.set(Math.cos(yaw), 0, -Math.sin(yaw));
-    _move.set(0, 0, 0);
+  const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 500);
 
-    if (keys['KeyW'] || keys['ArrowUp'])    _move.addScaledVector(_fwd,   SPEED * dt);
-    if (keys['KeyS'] || keys['ArrowDown'])  _move.addScaledVector(_fwd,  -SPEED * dt);
-    if (keys['KeyA'] || keys['ArrowLeft'])  _move.addScaledVector(_right, -SPEED * dt);
-    if (keys['KeyD'] || keys['ArrowRight']) _move.addScaledVector(_right,  SPEED * dt);
+  // ── Lighting ────────────────────────────────────────────────────────────────
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const sun = new THREE.DirectionalLight(0xfffbe0, 1.0);
+  sun.position.set(60, 120, 40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
+  sun.shadow.camera.right = sun.shadow.camera.top = 80;
+  scene.add(sun);
 
-    pos.x += _move.x;
-    pos.z += _move.z;
+  // ── World ───────────────────────────────────────────────────────────────────
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshLambertMaterial({ color: 0x4a7c59 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-    // Gravity + jump
-    if (onGround && keys['Space']) { velY = JUMP_V; onGround = false; }
-    velY += GRAVITY * dt;
-    pos.y += velY * dt;
+  const grid = new THREE.GridHelper(500, 100, 0x000000, 0x000000);
+  grid.material.opacity = 0.08;
+  grid.material.transparent = true;
+  scene.add(grid);
 
-    if (pos.y <= 0) { pos.y = 0; velY = 0; onGround = true; }
-
-    coordsEl.textContent = `x:${pos.x.toFixed(1)} y:${pos.y.toFixed(1)} z:${pos.z.toFixed(1)}`;
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+  for (const b of [
+    { x: 10, z: -10, w: 3, h: 5, d: 3 }, { x: -15, z: 5,   w: 2, h: 4, d: 2 },
+    { x:  5, z:  20, w: 4, h: 3, d: 4 }, { x:  -5, z: -20, w: 2, h: 6, d: 2 },
+    { x: 30, z:  10, w: 6, h: 2, d: 6 }, { x: -30, z: -15, w: 3, h: 3, d: 8 },
+    { x: 20, z: -30, w: 5, h: 4, d: 2 },
+  ]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
+    m.position.set(b.x, b.h / 2, b.z);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
   }
 
-  // Camera: first person, eyes at 1.7m above feet
-  camera.position.set(pos.x, pos.y + 1.7, pos.z);
-  camera.rotation.order = 'YXZ';
-  camera.rotation.y = yaw;
-  camera.rotation.x = pitch;
+  // ── Remote players ───────────────────────────────────────────────────────────
+  const meshes = {}; // id -> THREE.Group
 
-  sendPos();
-  renderer.render(scene, camera);
+  function makeAvatar(color) {
+    const mat = new THREE.MeshLambertMaterial({ color });
+    const g   = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.5), mat);
+    body.position.y = 0.6; body.castShadow = true; g.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), mat);
+    head.position.y = 1.55; head.castShadow = true; g.add(head);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    for (const sx of [-0.15, 0.15]) {
+      const eye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.05), eyeMat);
+      eye.position.set(sx, 1.58, 0.33); g.add(eye);
+    }
+    return g;
+  }
+
+  function addPlayer(id, d) {
+    if (meshes[id]) return;
+    const g = makeAvatar(d.color);
+    g.position.set(d.x, d.y, d.z);
+    g.rotation.y = d.ry || 0;
+    scene.add(g); meshes[id] = g;
+  }
+
+  function removePlayer(id) {
+    if (!meshes[id]) return;
+    scene.remove(meshes[id]); delete meshes[id];
+  }
+
+  // Add players that were already in game
+  for (const [id, d] of Object.entries(initData.players)) addPlayer(id, d);
+
+  // ── Local player ─────────────────────────────────────────────────────────────
+  const pos  = new THREE.Vector3(initData.x, initData.y, initData.z);
+  let yaw = 0, pitch = 0, velY = 0, onGround = true;
+  const SPEED = 8, GRAVITY = -22, JUMP_V = 9;
+
+  // ── Pointer lock ─────────────────────────────────────────────────────────────
+  const ptrOverlay = document.getElementById('ptr-overlay');
+  let locked = false;
+
+  ptrOverlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+  document.addEventListener('pointerlockchange', () => {
+    locked = !!document.pointerLockElement;
+    ptrOverlay.style.display = locked ? 'none' : 'flex';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!locked) return;
+    yaw   -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch  = Math.max(-1.48, Math.min(1.48, pitch));
+  });
+
+  const keys = {};
+  document.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'Escape' && locked) document.exitPointerLock();
+  });
+  document.addEventListener('keyup', e => keys[e.code] = false);
+
+  // ── HUD ──────────────────────────────────────────────────────────────────────
+  const hudRoom   = document.getElementById('hud-room');
+  const hudCoords = document.getElementById('hud-coords');
+
+  function updateHud() {
+    const n = Object.keys(meshes).length + 1;
+    hudRoom.textContent = `${myName} · sala ${roomId} · ${n} jugador${n !== 1 ? 'es' : ''}`;
+  }
+  updateHud();
+
+  // ── Network (game messages) ───────────────────────────────────────────────────
+  ws.addEventListener('message', e => {
+    const msg = JSON.parse(e.data);
+    if      (msg.type === 'join')  { addPlayer(msg.id, msg); updateHud(); }
+    else if (msg.type === 'leave') { removePlayer(msg.id);   updateHud(); }
+    else if (msg.type === 'state') {
+      for (const [id, d] of Object.entries(msg.players)) {
+        if (id === myId || !meshes[id]) continue;
+        meshes[id].position.lerp(new THREE.Vector3(d.x, d.y, d.z), 0.3);
+        meshes[id].rotation.y = d.ry;
+      }
+    }
+  });
+
+  let lastSend = 0;
+  function sendPos() {
+    if (ws.readyState !== 1) return;
+    const now = performance.now();
+    if (now - lastSend < 50) return;
+    lastSend = now;
+    ws.send(JSON.stringify({ type: 'move', x: pos.x, y: pos.y, z: pos.z, ry: yaw }));
+  }
+
+  // ── Game loop ────────────────────────────────────────────────────────────────
+  const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _move = new THREE.Vector3();
+  let last = performance.now();
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now();
+    const dt  = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    if (locked) {
+      _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+      _right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+      _move.set(0, 0, 0);
+
+      if (keys['KeyW'] || keys['ArrowUp'])    _move.addScaledVector(_fwd,    SPEED * dt);
+      if (keys['KeyS'] || keys['ArrowDown'])  _move.addScaledVector(_fwd,   -SPEED * dt);
+      if (keys['KeyA'] || keys['ArrowLeft'])  _move.addScaledVector(_right,  -SPEED * dt);
+      if (keys['KeyD'] || keys['ArrowRight']) _move.addScaledVector(_right,   SPEED * dt);
+
+      pos.x += _move.x;
+      pos.z += _move.z;
+
+      if (onGround && keys['Space']) { velY = JUMP_V; onGround = false; }
+      velY  += GRAVITY * dt;
+      pos.y += velY * dt;
+      if (pos.y <= 0) { pos.y = 0; velY = 0; onGround = true; }
+
+      hudCoords.textContent = `x:${pos.x.toFixed(1)} z:${pos.z.toFixed(1)}`;
+    }
+
+    camera.position.set(pos.x, pos.y + 1.7, pos.z);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+
+    sendPos();
+    renderer.render(scene, camera);
+  })();
 }
-
-animate();
 </script>
 </body>
 </html>
