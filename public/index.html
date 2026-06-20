@@ -60,6 +60,16 @@
 
     .divider { height: 1px; background: rgba(255,255,255,0.07); }
 
+    .or-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: rgba(255,255,255,0.2); font-size: 11px; letter-spacing: 1px;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+    }
+
+    #inp-room-code { text-transform: uppercase; letter-spacing: 4px; text-align: center; }
+
     /* ── Lobby specifics ─────────────────────────────────────────── */
     .room-header { text-align: center; }
     .room-label  { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 4px; }
@@ -122,8 +132,11 @@
     <div class="logo">GAME</div>
     <div class="sub">MULTIPLAYER 3D</div>
     <div class="divider"></div>
-    <input id="inp-name" type="text" placeholder="Tu nombre" maxlength="16" autocomplete="off">
+    <input id="inp-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
     <button class="btn" id="btn-create">CREAR SALA</button>
+    <div class="or-divider"><span>O</span></div>
+    <input id="inp-room-code" type="text" placeholder="Código de sala" maxlength="6" autocomplete="off">
+    <button class="btn btn-ghost" id="btn-join-room">UNIRSE A SALA</button>
   </div>
 </div>
 
@@ -202,12 +215,26 @@ let ws, myId, myColor;
 // ─── LANDING ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-create').addEventListener('click', createRoom);
 document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
+document.getElementById('btn-join-room').addEventListener('click', joinRoom);
+document.getElementById('inp-room-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+function getNameFromLanding() {
+  return document.getElementById('inp-name').value.trim() || 'Player';
+}
 
 function createRoom() {
-  const name = document.getElementById('inp-name').value.trim() || 'Player';
+  const name = getNameFromLanding();
   sessionStorage.setItem('playerName', name);
   const id = Math.random().toString(36).slice(2, 8).toUpperCase();
   location.href = `/?room=${id}`;
+}
+
+function joinRoom() {
+  const code = document.getElementById('inp-room-code').value.trim().toUpperCase();
+  if (!code) { document.getElementById('inp-room-code').focus(); return; }
+  const name = getNameFromLanding();
+  sessionStorage.setItem('playerName', name);
+  location.href = `/?room=${code}`;
 }
 
 // ─── LOBBY ───────────────────────────────────────────────────────────────────
