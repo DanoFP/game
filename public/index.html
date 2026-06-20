@@ -10,18 +10,14 @@
     canvas { display: block; }
     [hidden] { display: none !important; }
 
-    /* ── Screens ─────────────────────────────────────────────────── */
-    .screen {
-      position: fixed; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
 
     .card {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px;
       padding: 40px 36px;
-      width: 360px;
+      width: 380px;
       display: flex; flex-direction: column; gap: 14px;
     }
 
@@ -31,11 +27,9 @@
     input[type="text"] {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 7px;
-      padding: 11px 14px;
+      border-radius: 7px; padding: 11px 14px;
       color: #fff; font-family: inherit; font-size: 13px;
-      outline: none; transition: border-color .2s;
-      width: 100%;
+      outline: none; transition: border-color .2s; width: 100%;
     }
     input[type="text"]:focus { border-color: rgba(255,255,255,0.35); }
     input[type="text"]::placeholder { color: rgba(255,255,255,0.25); }
@@ -70,7 +64,7 @@
 
     #inp-room-code { text-transform: uppercase; letter-spacing: 4px; text-align: center; }
 
-    /* ── Lobby specifics ─────────────────────────────────────────── */
+    /* ── Lobby ────────────────────────────────────────────────────── */
     .room-header { text-align: center; }
     .room-label  { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 4px; }
     .room-code   { font-size: 30px; letter-spacing: 10px; font-weight: bold; }
@@ -80,10 +74,31 @@
     .invite-row .btn  { width: auto; padding: 9px 14px; font-size: 10px; flex-shrink: 0; }
 
     #lobby-gate, #lobby-panel { display: flex; flex-direction: column; gap: 14px; }
+
     .section-label { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); }
 
-    #player-list { display: flex; flex-direction: column; gap: 6px; min-height: 48px; }
+    /* ── Map selector ─────────────────────────────────────────────── */
+    .map-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .map-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 14px 6px;
+      color: rgba(255,255,255,0.4);
+      font-family: inherit; font-size: 9px;
+      font-weight: bold; letter-spacing: 1px;
+      cursor: pointer; transition: all .15s;
+      text-align: center; line-height: 1.6;
+    }
+    .map-btn .map-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+    .map-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.7); }
+    .map-btn.active {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.5);
+      color: #fff;
+    }
 
+    /* ── Player list ──────────────────────────────────────────────── */
+    #player-list { display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
     .player-row {
       display: flex; align-items: center; gap: 10px;
       padding: 8px 12px;
@@ -94,13 +109,12 @@
     .p-name { flex: 1; }
     .p-tag  {
       font-size: 9px; letter-spacing: 1px;
-      color: rgba(255,255,255,0.3);
-      padding: 2px 6px; border-radius: 3px;
-      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.3); padding: 2px 6px;
+      border-radius: 3px; background: rgba(255,255,255,0.06);
     }
     .p-tag.in-game { color: #2ecc71; background: rgba(46,204,113,.12); }
 
-    /* ── Game HUD ────────────────────────────────────────────────── */
+    /* ── HUD ──────────────────────────────────────────────────────── */
     #hud {
       position: fixed; top: 12px; left: 14px;
       font-size: 12px; line-height: 1.7;
@@ -126,7 +140,7 @@
 </head>
 <body>
 
-<!-- ══════════════════════ LANDING ══════════════════════ -->
+<!-- ══════════ LANDING ══════════ -->
 <div id="s-landing" class="screen">
   <div class="card">
     <div class="logo">GAME</div>
@@ -143,20 +157,20 @@
   </div>
 </div>
 
-<!-- ══════════════════════ LOBBY ══════════════════════ -->
+<!-- ══════════ LOBBY ══════════ -->
 <div id="s-lobby" class="screen" hidden>
   <div class="card">
 
-    <!-- Gate: ask for name if joining via link -->
+    <!-- Name gate: shown only when entering via link without sessionStorage name -->
     <div id="lobby-gate">
       <div class="logo">GAME</div>
       <div class="sub">UNIRSE A LA SALA</div>
       <div class="divider"></div>
-      <input id="inp-join-name" type="text" placeholder="Tu nombre" maxlength="16" autocomplete="off">
-      <button class="btn" id="btn-join">UNIRSE</button>
+      <input id="inp-gate-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
+      <button class="btn" id="btn-gate-join">UNIRSE</button>
     </div>
 
-    <!-- Room panel: shown after WS connected -->
+    <!-- Room panel -->
     <div id="lobby-panel" hidden>
       <div class="room-header">
         <span class="room-label">CÓDIGO DE SALA</span>
@@ -166,6 +180,21 @@
       <div class="invite-row">
         <input type="text" id="invite-url" readonly>
         <button class="btn btn-ghost" id="btn-copy">COPIAR</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-label">MAPA</div>
+      <div class="map-selector">
+        <button class="map-btn active" data-map="field">
+          <span class="map-icon">🌿</span>CAMPO
+        </button>
+        <button class="map-btn" data-map="city">
+          <span class="map-icon">🏙️</span>CIUDAD
+        </button>
+        <button class="map-btn" data-map="spaceship">
+          <span class="map-icon">🚀</span>NAVE
+        </button>
       </div>
 
       <div class="divider"></div>
@@ -181,7 +210,7 @@
   </div>
 </div>
 
-<!-- ══════════════════════ GAME ══════════════════════ -->
+<!-- ══════════ GAME ══════════ -->
 <div id="s-game" hidden>
   <div id="ptr-overlay">
     <h2>GAME</h2>
@@ -199,7 +228,7 @@
 <script>
 'use strict';
 
-// ─── Screen helpers ───────────────────────────────────────────────────────────
+// ─── Screens ─────────────────────────────────────────────────────────────────
 const S = {
   landing: document.getElementById('s-landing'),
   lobby:   document.getElementById('s-lobby'),
@@ -209,7 +238,7 @@ function showScreen(name) {
   for (const [k, el] of Object.entries(S)) el.hidden = k !== name;
 }
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────
 const urlParams = new URLSearchParams(location.search);
 const roomId    = urlParams.get('room');
 let myName      = sessionStorage.getItem('playerName') || '';
@@ -239,37 +268,29 @@ function joinRoom() {
 // ─── LOBBY ───────────────────────────────────────────────────────────────────
 if (roomId) {
   showScreen('lobby');
-  if (myName) {
-    connectToRoom(myName);
-  }
-  // else: name gate is visible by default
+  if (myName) connectToRoom(myName);
 } else {
   showScreen('landing');
 }
 
-document.getElementById('btn-join').addEventListener('click', joinWithName);
-document.getElementById('inp-join-name').addEventListener('keydown', e => { if (e.key === 'Enter') joinWithName(); });
+document.getElementById('btn-gate-join').addEventListener('click', gateJoin);
+document.getElementById('inp-gate-name').addEventListener('keydown', e => { if (e.key === 'Enter') gateJoin(); });
 
-function joinWithName() {
-  const name = document.getElementById('inp-join-name').value.trim() || 'Player';
+function gateJoin() {
+  const name = document.getElementById('inp-gate-name').value.trim() || 'Player';
   sessionStorage.setItem('playerName', name);
   connectToRoom(name);
 }
 
 function connectToRoom(name) {
   myName = name;
-
-  // Swap gate → panel
   document.getElementById('lobby-gate').hidden = true;
-  const panel = document.getElementById('lobby-panel');
-  panel.hidden = false;
-
-  // Fill static info
+  document.getElementById('lobby-panel').hidden = false;
   document.getElementById('room-code-display').textContent = roomId;
+
   const inviteUrl = `${location.origin}/?room=${roomId}`;
   document.getElementById('invite-url').value = inviteUrl;
 
-  // Copy button
   const btnCopy = document.getElementById('btn-copy');
   btnCopy.addEventListener('click', () => {
     navigator.clipboard.writeText(inviteUrl).then(() => {
@@ -278,18 +299,34 @@ function connectToRoom(name) {
     });
   });
 
-  // Connect WebSocket
+  // Track selected map locally — source of truth for this client
+  let selectedMap = 'field';
+
+  // Map selector — optimistic update + sync to server
+  document.querySelectorAll('.map-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedMap = btn.dataset.map;
+      setActiveMap(selectedMap);
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'set_map', map: selectedMap }));
+      }
+    });
+  });
+
+  // WebSocket
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(roomId)}&name=${encodeURIComponent(name)}`);
 
   ws.addEventListener('message', e => {
     const msg = JSON.parse(e.data);
-
     if (msg.type === 'room_state') {
-      myId    = msg.id;
-      myColor = msg.color;
+      myId = msg.id; myColor = msg.color;
+      selectedMap = msg.map;
+      setActiveMap(msg.map);
       renderPlayerList(msg.players);
     } else if (msg.type === 'room_update') {
+      selectedMap = msg.map;
+      setActiveMap(msg.map);
       renderPlayerList(msg.players);
     } else if (msg.type === 'game_init') {
       startGame(msg);
@@ -301,8 +338,18 @@ function connectToRoom(name) {
     document.getElementById('btn-play').disabled = true;
   });
 
+  // Send map with enter_game to guarantee server uses the correct one
   document.getElementById('btn-play').addEventListener('click', () => {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'enter_game' }));
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'enter_game', map: selectedMap }));
+    }
+  });
+}
+
+function setActiveMap(map) {
+  if (!map) return;
+  document.querySelectorAll('.map-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.map === map);
   });
 }
 
@@ -312,27 +359,292 @@ function renderPlayerList(players) {
   for (const [id, p] of Object.entries(players)) {
     const row = document.createElement('div');
     row.className = 'player-row';
-    const isMe = id === myId;
     row.innerHTML =
       `<span class="p-dot" style="background:${p.color}"></span>` +
-      `<span class="p-name">${p.name}${isMe ? ' <span style="opacity:.4">(tú)</span>' : ''}</span>` +
-      `<span class="p-tag ${p.inGame ? 'in-game' : ''}">${p.inGame ? 'EN JUEGO' : 'LOBBY'}</span>`;
+      `<span class="p-name">${p.name}${id === myId ? ' <span style="opacity:.4">(tú)</span>' : ''}</span>` +
+      `<span class="p-tag${p.inGame ? ' in-game' : ''}">${p.inGame ? 'EN JUEGO' : 'LOBBY'}</span>`;
     list.appendChild(row);
   }
 }
 
-// ─── GAME ─────────────────────────────────────────────────────────────────────
+// ─── GAME ────────────────────────────────────────────────────────────────────
 let gameStarted = false;
 
 function startGame(initData) {
   if (gameStarted) return;
   gameStarted = true;
+  document.getElementById('s-game').dataset.map = initData.map; // used by e2e tests
   showScreen('game');
   initThree(initData);
 }
 
+// ── Shared helpers ────────────────────────────────────────────────────────────
+function addBox(scene, x, y, z, w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m); return m;
+}
+
+function rnd(min, max) { return min + Math.random() * (max - min); }
+
+// ── MAP: FIELD ────────────────────────────────────────────────────────────────
+function buildField(scene, { phys, wall, boundary, staircase }) {
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const sun = new THREE.DirectionalLight(0xfffbe0, 1.0);
+  sun.position.set(60, 120, 40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
+  sun.shadow.camera.right = sun.shadow.camera.top = 80;
+  sun.shadow.camera.far = 300;
+  scene.add(sun);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshLambertMaterial({ color: 0x4a7c59 })
+  );
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  scene.add(ground);
+
+  const grid = new THREE.GridHelper(500, 100, 0x000000, 0x000000);
+  grid.material.opacity = 0.06; grid.material.transparent = true;
+  scene.add(grid);
+
+  // Trees
+  const trunkMat  = new THREE.MeshLambertMaterial({ color: 0x6b4226 });
+  const leavesMat = new THREE.MeshLambertMaterial({ color: 0x2d6a2d });
+  const dark      = new THREE.MeshLambertMaterial({ color: 0x1e4f1e });
+  const woodMat   = new THREE.MeshLambertMaterial({ color: 0x9b6840 });
+  for (let i = 0; i < 35; i++) {
+    let tx, tz;
+    do { tx = rnd(-80, 80); tz = rnd(-80, 80); }
+    while (Math.hypot(tx, tz) < 12);
+
+    const h = rnd(2, 5);
+    // Trunk: visible cylinder + box collider
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, h, 6), trunkMat);
+    trunk.position.set(tx, h / 2, tz); trunk.castShadow = true;
+    scene.add(trunk);
+    wall(tx, h / 2, tz, 0.4, h, 0.4);
+
+    // Canopy (visual only)
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(rnd(1, 2), rnd(2.5, 4.5), 7), Math.random() > 0.4 ? leavesMat : dark);
+    cone.position.set(tx, h + 1.5, tz); cone.castShadow = true;
+    scene.add(cone);
+
+    // Climbable staircase on +X side for tall trees
+    if (h > 3.2) {
+      staircase(tx + 0.25, tz, 0.9, h * 0.9, woodMat, 1, 0);
+    }
+  }
+
+  // Hay bales (collidable)
+  const hayMat = new THREE.MeshLambertMaterial({ color: 0xc8a63a });
+  for (let i = 0; i < 10; i++) {
+    phys(rnd(-60, 60), 0.45, rnd(-60, 60), 1.4, 0.9, 0.9, hayMat);
+  }
+
+  // Fence (collidable)
+  const fenceMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+  for (let i = -5; i <= 5; i++) {
+    phys(i * 3, 0.6, 25, 0.12, 1.2, 0.12, fenceMat);
+    if (i < 5) {
+      phys(i * 3 + 1.5, 0.9, 25, 3, 0.08, 0.06, fenceMat);
+      phys(i * 3 + 1.5, 0.5, 25, 3, 0.08, 0.06, fenceMat);
+    }
+  }
+
+  boundary(90);
+}
+
+// ── MAP: CITY ────────────────────────────────────────────────────────────────
+function buildCity(scene, { phys, wall, boundary, staircase }) {
+  scene.background = new THREE.Color(0x05050f);
+  scene.fog = new THREE.Fog(0x05050f, 30, 130);
+
+  scene.add(new THREE.AmbientLight(0x5577aa, 1.4));
+  scene.add(new THREE.HemisphereLight(0x7799cc, 0x334455, 0.9));
+
+  // Ground (asphalt)
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshLambertMaterial({ color: 0x111116 })
+  );
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Road markings
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+  for (let i = -4; i <= 4; i++) {
+    const hLine = new THREE.Mesh(new THREE.PlaneGeometry(200, 0.3), lineMat);
+    hLine.rotation.x = -Math.PI / 2; hLine.position.set(0, 0.01, i * 20);
+    scene.add(hLine);
+    const vLine = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 200), lineMat);
+    vLine.rotation.x = -Math.PI / 2; vLine.position.set(i * 20, 0.01, 0);
+    scene.add(vLine);
+  }
+
+  // Buildings
+  const buildingMats = [
+    new THREE.MeshLambertMaterial({ color: 0x1a2233 }),
+    new THREE.MeshLambertMaterial({ color: 0x1e1e28 }),
+    new THREE.MeshLambertMaterial({ color: 0x221a1a }),
+    new THREE.MeshLambertMaterial({ color: 0x1a2820 }),
+  ];
+  const stairMat   = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+  const windowMat  = new THREE.MeshBasicMaterial({ color: 0xffdd88 });
+  const windowMatB = new THREE.MeshBasicMaterial({ color: 0x88aaff });
+
+  const GRID = [-60, -40, -20, 20, 40, 60];
+  for (const bx of GRID) {
+    for (const bz of GRID) {
+      if (Math.abs(bx) < 12 && Math.abs(bz) < 12) continue;
+      if (Math.random() < 0.15) continue;
+
+      const w = rnd(5, 12); const h = rnd(6, 35); const d = rnd(5, 12);
+      const ox = rnd(-4, 4); const oz = rnd(-4, 4);
+      const cx = bx + ox, cz = bz + oz;
+      const mat = buildingMats[Math.floor(Math.random() * buildingMats.length)];
+      phys(cx, h / 2, cz, w, h, d, mat);
+
+      // Windows (visual only)
+      const wm = Math.random() > 0.5 ? windowMat : windowMatB;
+      const floors = Math.floor(h / 2.5);
+      for (let fl = 0; fl < floors; fl++) {
+        for (let col = 0; col < 2; col++) {
+          if (Math.random() < 0.35) continue;
+          const win = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.5), wm);
+          win.position.set(cx + w / 2 + 0.02, 1.5 + fl * 2.5, cz + (col - 0.5) * 1.8);
+          win.rotation.y = -Math.PI / 2;
+          scene.add(win);
+        }
+      }
+
+      // Staircase on +X face for tall buildings
+      if (h > 9) {
+        staircase(cx + w / 2 + 0.02, cz, Math.min(d * 0.8, 4), h, stairMat, 1, 0);
+      }
+    }
+  }
+
+  // Street lights (thin poles — visual only)
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0x334455 });
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffdd99 });
+  for (const [lx, lz] of [[-10,-10],[10,-10],[-10,10],[10,10],[-10,30],[10,30],[-30,-10],[30,10]]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 6, 6), poleMat);
+    pole.position.set(lx, 3, lz); scene.add(pole);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), bulbMat);
+    bulb.position.set(lx, 6.2, lz); scene.add(bulb);
+    const ptLight = new THREE.PointLight(0xffdd99, 5.0, 40);
+    ptLight.position.set(lx, 6, lz); scene.add(ptLight);
+  }
+
+  boundary(72);
+}
+
+// ── MAP: SPACESHIP ────────────────────────────────────────────────────────────
+function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
+  scene.background = new THREE.Color(0x000008);
+  scene.fog = new THREE.FogExp2(0x000008, 0.012);
+
+  scene.add(new THREE.AmbientLight(0x4466aa, 1.8));
+  scene.add(new THREE.HemisphereLight(0x5577cc, 0x112233, 0.8));
+
+  // Stars
+  const starVerts = [];
+  for (let i = 0; i < 3000; i++) {
+    const r = rnd(150, 500);
+    const theta = rnd(0, Math.PI * 2);
+    const phi   = rnd(0, Math.PI);
+    starVerts.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
+
+  // Metal floor
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 500),
+    new THREE.MeshLambertMaterial({ color: 0x101018 })
+  );
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Floor grid (blue tech lines)
+  const gridHelper = new THREE.GridHelper(100, 20, 0x002244, 0x001133);
+  scene.add(gridHelper);
+
+  const wallMat   = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
+  const panelMat  = new THREE.MeshLambertMaterial({ color: 0x0d1520 });
+  const metalMat  = new THREE.MeshLambertMaterial({ color: 0x222233 });
+  const crateMat  = new THREE.MeshLambertMaterial({ color: 0x1a2a1a });
+  const screenMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+  const redMat    = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+
+  // Corridor walls (collidable)
+  phys(-14, 5, 0, 1, 10, 80, wallMat);
+  phys( 14, 5, 0, 1, 10, 80, wallMat);
+  phys(0, 5, -14, 60, 10, 1, wallMat);
+  phys(0, 5,  14, 60, 10, 1, wallMat);
+  // Ceiling panels (collidable — block jump-through)
+  phys(0, 10.1, 0, 28, 0.3, 80, panelMat);
+  phys(0, 10.1, 0, 60, 0.3, 28, panelMat);
+
+  // Support pillars (collidable)
+  for (const [px, pz] of [[-12,20],[12,20],[-12,-20],[12,-20],[-12,0],[12,0]]) {
+    phys(px, 5, pz, 0.8, 10, 0.8, metalMat);
+  }
+
+  // Ceiling light strips (visual only)
+  const stripMat = new THREE.MeshBasicMaterial({ color: 0x4488ff });
+  for (const sz of [-30,-10,10,30]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(26, 0.1, 0.4), stripMat);
+    strip.position.set(0, 9.8, sz); scene.add(strip);
+    const ptLight = new THREE.PointLight(0x66aaff, 4.0, 50);
+    ptLight.position.set(0, 9, sz); scene.add(ptLight);
+  }
+  for (const sx of [-20, 0, 20]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 26), stripMat);
+    strip.position.set(sx, 9.8, 0); scene.add(strip);
+    const ptLight = new THREE.PointLight(0x66aaff, 4.0, 50);
+    ptLight.position.set(sx, 9, 0); scene.add(ptLight);
+  }
+
+  // Crates (collidable)
+  for (let i = 0; i < 14; i++) {
+    const s = rnd(0.8, 1.8);
+    const cx = rnd(-12, 12); const cz = rnd(-12, 12);
+    if (Math.abs(cx) < 4 && Math.abs(cz) < 4) continue;
+    phys(cx, s / 2, cz, s, s, s, crateMat);
+  }
+
+  // Raised platform + staircase (lets you climb up)
+  phys(-8, 2, -8, 3, 4, 3, metalMat);
+  staircase(-8, -9.5, 2.5, 4, new THREE.MeshLambertMaterial({ color: 0x1a2233 }), 0, -1);
+
+  // Control panels (visual only)
+  for (const [px, pz, ry] of [[-13, -5, Math.PI/2],[13, 5, -Math.PI/2],[0, -13, 0],[0, 13, Math.PI]]) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 0.2), panelMat);
+    panel.position.set(px, 1.8, pz); panel.rotation.y = ry; scene.add(panel);
+    // Screens on panel
+    const sc = Math.random() > 0.5 ? screenMat : redMat;
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.6), sc);
+    screen.position.set(px + (ry === Math.PI/2 ? 0.11 : ry === -Math.PI/2 ? -0.11 : 0),
+                        1.9,
+                        pz + (ry === 0 ? 0.11 : ry === Math.PI ? -0.11 : 0));
+    screen.rotation.y = ry; scene.add(screen);
+    const glow = new THREE.PointLight(sc === screenMat ? 0x0088ff : 0xff2200, 2.0, 12);
+    glow.position.set(px, 2, pz); scene.add(glow);
+  }
+}
+
+// ── initThree ────────────────────────────────────────────────────────────────
 function initThree(initData) {
-  // ── Renderer ────────────────────────────────────────────────────────────────
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -346,53 +658,66 @@ function initThree(initData) {
     camera.updateProjectionMatrix();
   });
 
-  // ── Scene ───────────────────────────────────────────────────────────────────
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x87ceeb);
-  scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
-
+  const scene  = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 500);
 
-  // ── Lighting ────────────────────────────────────────────────────────────────
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const sun = new THREE.DirectionalLight(0xfffbe0, 1.0);
-  sun.position.set(60, 120, 40);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
-  sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
-  sun.shadow.camera.right = sun.shadow.camera.top = 80;
-  scene.add(sun);
+  // ── Collision helpers ────────────────────────────────────────────────────
+  const colliders = [];
+  const HW = 0.38, PHEAD = 1.85; // player half-width, head height
 
-  // ── World ───────────────────────────────────────────────────────────────────
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(500, 500),
-    new THREE.MeshLambertMaterial({ color: 0x4a7c59 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  const grid = new THREE.GridHelper(500, 100, 0x000000, 0x000000);
-  grid.material.opacity = 0.08;
-  grid.material.transparent = true;
-  scene.add(grid);
-
-  const wallMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
-  for (const b of [
-    { x: 10, z: -10, w: 3, h: 5, d: 3 }, { x: -15, z: 5,   w: 2, h: 4, d: 2 },
-    { x:  5, z:  20, w: 4, h: 3, d: 4 }, { x:  -5, z: -20, w: 2, h: 6, d: 2 },
-    { x: 30, z:  10, w: 6, h: 2, d: 6 }, { x: -30, z: -15, w: 3, h: 3, d: 8 },
-    { x: 20, z: -30, w: 5, h: 4, d: 2 },
-  ]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
-    m.position.set(b.x, b.h / 2, b.z);
+  function phys(cx, cy, cz, w, h, d, mat) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(cx, cy, cz);
     m.castShadow = true; m.receiveShadow = true;
     scene.add(m);
+    colliders.push({ minX: cx-w/2, maxX: cx+w/2, minY: cy-h/2, maxY: cy+h/2, minZ: cz-d/2, maxZ: cz+d/2 });
+    return m;
   }
 
-  // ── Remote players ───────────────────────────────────────────────────────────
-  const meshes = {}; // id -> THREE.Group
+  function wall(cx, cy, cz, w, h, d) {
+    colliders.push({ minX: cx-w/2, maxX: cx+w/2, minY: cy-h/2, maxY: cy+h/2, minZ: cz-d/2, maxZ: cz+d/2 });
+  }
+
+  function boundary(ext) {
+    const h = 30, t = 3;
+    wall(0, h/2,  ext + t/2, (ext + t) * 2, h, t);
+    wall(0, h/2, -(ext + t/2), (ext + t) * 2, h, t);
+    wall( ext + t/2, h/2, 0, t, h, (ext + t) * 2);
+    wall(-(ext + t/2), h/2, 0, t, h, (ext + t) * 2);
+  }
+
+  // Staircase: steps rise in Y, extend outward from (ox,oz) in direction (dx,dz)
+  // ox,oz = base point where stairs meet the object; steps spread away from it
+  function staircase(ox, oz, perpW, maxH, mat, dx, dz) {
+    const SH = 0.5, SD = 0.6;
+    const steps = Math.max(1, Math.round(maxH / SH));
+    for (let i = 1; i <= steps; i++) {
+      const dist = (steps - i + 0.5) * SD;
+      phys(
+        ox + dx * dist, (i * SH) / 2, oz + dz * dist,
+        Math.abs(dz) > 0 ? perpW : SD,
+        i * SH,
+        Math.abs(dx) > 0 ? perpW : SD,
+        mat
+      );
+    }
+  }
+
+  // Is the player box at (x, y, z) overlapping any collider?
+  function blocked(x, y, z) {
+    for (const c of colliders) {
+      if (x + HW > c.minX && x - HW < c.maxX &&
+          y + PHEAD > c.minY && y < c.maxY &&
+          z + HW > c.minZ && z - HW < c.maxZ) return true;
+    }
+    return false;
+  }
+
+  // Build selected map
+  ({ field: buildField, city: buildCity, spaceship: buildSpaceship }[initData.map] || buildField)(scene, { phys, wall, boundary, staircase });
+
+  // ── Remote players ──────────────────────────────────────────────────────────
+  const meshes = {};
 
   function makeAvatar(color) {
     const mat = new THREE.MeshLambertMaterial({ color });
@@ -412,8 +737,7 @@ function initThree(initData) {
   function addPlayer(id, d) {
     if (meshes[id]) return;
     const g = makeAvatar(d.color);
-    g.position.set(d.x, d.y, d.z);
-    g.rotation.y = d.ry || 0;
+    g.position.set(d.x, d.y, d.z); g.rotation.y = d.ry || 0;
     scene.add(g); meshes[id] = g;
   }
 
@@ -422,18 +746,16 @@ function initThree(initData) {
     scene.remove(meshes[id]); delete meshes[id];
   }
 
-  // Add players that were already in game
   for (const [id, d] of Object.entries(initData.players)) addPlayer(id, d);
 
-  // ── Local player ─────────────────────────────────────────────────────────────
+  // ── Local player ────────────────────────────────────────────────────────────
   const pos  = new THREE.Vector3(initData.x, initData.y, initData.z);
   let yaw = 0, pitch = 0, velY = 0, onGround = true;
   const SPEED = 8, GRAVITY = -22, JUMP_V = 9;
 
-  // ── Pointer lock ─────────────────────────────────────────────────────────────
+  // ── Pointer lock ────────────────────────────────────────────────────────────
   const ptrOverlay = document.getElementById('ptr-overlay');
   let locked = false;
-
   ptrOverlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
   document.addEventListener('pointerlockchange', () => {
     locked = !!document.pointerLockElement;
@@ -453,17 +775,18 @@ function initThree(initData) {
   });
   document.addEventListener('keyup', e => keys[e.code] = false);
 
-  // ── HUD ──────────────────────────────────────────────────────────────────────
+  // ── HUD ─────────────────────────────────────────────────────────────────────
   const hudRoom   = document.getElementById('hud-room');
   const hudCoords = document.getElementById('hud-coords');
+  const MAP_LABELS = { field: 'Campo', city: 'Ciudad', spaceship: 'Nave' };
 
   function updateHud() {
     const n = Object.keys(meshes).length + 1;
-    hudRoom.textContent = `${myName} · sala ${roomId} · ${n} jugador${n !== 1 ? 'es' : ''}`;
+    hudRoom.textContent = `${myName} · ${MAP_LABELS[initData.map] || initData.map} · ${n} jugador${n !== 1 ? 'es' : ''}`;
   }
   updateHud();
 
-  // ── Network (game messages) ───────────────────────────────────────────────────
+  // ── Network ─────────────────────────────────────────────────────────────────
   ws.addEventListener('message', e => {
     const msg = JSON.parse(e.data);
     if      (msg.type === 'join')  { addPlayer(msg.id, msg); updateHud(); }
@@ -486,8 +809,9 @@ function initThree(initData) {
     ws.send(JSON.stringify({ type: 'move', x: pos.x, y: pos.y, z: pos.z, ry: yaw }));
   }
 
-  // ── Game loop ────────────────────────────────────────────────────────────────
+  // ── Game loop ───────────────────────────────────────────────────────────────
   const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _move = new THREE.Vector3();
+  const STEP_UP = 0.52;
   let last = performance.now();
 
   (function animate() {
@@ -500,27 +824,68 @@ function initThree(initData) {
       _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
       _right.set(Math.cos(yaw), 0, -Math.sin(yaw));
       _move.set(0, 0, 0);
-
       if (keys['KeyW'] || keys['ArrowUp'])    _move.addScaledVector(_fwd,    SPEED * dt);
       if (keys['KeyS'] || keys['ArrowDown'])  _move.addScaledVector(_fwd,   -SPEED * dt);
       if (keys['KeyA'] || keys['ArrowLeft'])  _move.addScaledVector(_right,  -SPEED * dt);
       if (keys['KeyD'] || keys['ArrowRight']) _move.addScaledVector(_right,   SPEED * dt);
 
+      // Horizontal X — with step-up
+      const prevX = pos.x;
       pos.x += _move.x;
+      if (blocked(pos.x, pos.y, pos.z)) {
+        if (!blocked(pos.x, pos.y + STEP_UP, pos.z)) {
+          pos.y += STEP_UP; velY = 0; onGround = true;
+        } else { pos.x = prevX; }
+      }
+
+      // Horizontal Z — with step-up
+      const prevZ = pos.z;
       pos.z += _move.z;
+      if (blocked(pos.x, pos.y, pos.z)) {
+        if (!blocked(pos.x, pos.y + STEP_UP, pos.z)) {
+          pos.y += STEP_UP; velY = 0; onGround = true;
+        } else { pos.z = prevZ; }
+      }
 
+      // Vertical — gravity, jump, land on top of obstacles
+      const prevY = pos.y;
       if (onGround && keys['Space']) { velY = JUMP_V; onGround = false; }
-      velY  += GRAVITY * dt;
+      velY += GRAVITY * dt;
       pos.y += velY * dt;
-      if (pos.y <= 0) { pos.y = 0; velY = 0; onGround = true; }
 
-      hudCoords.textContent = `x:${pos.x.toFixed(1)} z:${pos.z.toFixed(1)}`;
+      if (pos.y <= 0) {
+        pos.y = 0; velY = 0; onGround = true;
+      } else if (velY < 0 && blocked(pos.x, pos.y, pos.z)) {
+        // Landing on top of an obstacle — find the highest surface under feet
+        let top = -1;
+        for (const c of colliders) {
+          if (pos.x + HW > c.minX && pos.x - HW < c.maxX &&
+              pos.z + HW > c.minZ && pos.z - HW < c.maxZ &&
+              c.maxY <= prevY + 0.1 && c.maxY > top) top = c.maxY;
+        }
+        pos.y = top >= 0 ? top : prevY;
+        velY = 0; onGround = true;
+      } else if (velY > 0 && blocked(pos.x, pos.y, pos.z)) {
+        // Hit ceiling while jumping
+        pos.y = prevY; velY = 0;
+      } else {
+        // Check if still standing on something or fell off an edge
+        onGround = pos.y <= 0.02;
+        if (!onGround) {
+          for (const c of colliders) {
+            if (pos.x + HW > c.minX && pos.x - HW < c.maxX &&
+                pos.z + HW > c.minZ && pos.z - HW < c.maxZ &&
+                Math.abs(pos.y - c.maxY) < 0.08) { onGround = true; break; }
+          }
+        }
+      }
+
+      hudCoords.textContent = `x:${pos.x.toFixed(1)} y:${pos.y.toFixed(1)} z:${pos.z.toFixed(1)}`;
     }
 
     camera.position.set(pos.x, pos.y + 1.7, pos.z);
     camera.rotation.order = 'YXZ';
-    camera.rotation.y = yaw;
-    camera.rotation.x = pitch;
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
 
     sendPos();
     renderer.render(scene, camera);
