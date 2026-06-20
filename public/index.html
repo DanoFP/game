@@ -132,9 +132,12 @@
     <div class="logo">GAME</div>
     <div class="sub">MULTIPLAYER 3D</div>
     <div class="divider"></div>
+    <div class="section-label">CREAR SALA</div>
     <input id="inp-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
     <button class="btn" id="btn-create">CREAR SALA</button>
     <div class="or-divider"><span>O</span></div>
+    <div class="section-label">UNIRSE A SALA</div>
+    <input id="inp-join-name" type="text" placeholder="Tu nickname" maxlength="16" autocomplete="off">
     <input id="inp-room-code" type="text" placeholder="Código de sala" maxlength="6" autocomplete="off">
     <button class="btn btn-ghost" id="btn-join-room">UNIRSE A SALA</button>
   </div>
@@ -218,21 +221,17 @@ document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key
 document.getElementById('btn-join-room').addEventListener('click', joinRoom);
 document.getElementById('inp-room-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 
-function getNameFromLanding() {
-  return document.getElementById('inp-name').value.trim() || 'Player';
-}
-
 function createRoom() {
-  const name = getNameFromLanding();
+  const name = document.getElementById('inp-name').value.trim() || 'Player';
   sessionStorage.setItem('playerName', name);
   const id = Math.random().toString(36).slice(2, 8).toUpperCase();
   location.href = `/?room=${id}`;
 }
 
 function joinRoom() {
+  const name = document.getElementById('inp-join-name').value.trim() || 'Player';
   const code = document.getElementById('inp-room-code').value.trim().toUpperCase();
   if (!code) { document.getElementById('inp-room-code').focus(); return; }
-  const name = getNameFromLanding();
   sessionStorage.setItem('playerName', name);
   location.href = `/?room=${code}`;
 }
