@@ -8,6 +8,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0c0c14; font-family: 'Courier New', monospace; color: #fff; overflow: hidden; }
     canvas { display: block; }
+    [hidden] { display: none !important; }
 
     /* ── Screens ─────────────────────────────────────────────────── */
     .screen {
@@ -68,6 +69,7 @@
     .invite-row input { font-size: 10px; padding: 9px 12px; flex: 1; }
     .invite-row .btn  { width: auto; padding: 9px 14px; font-size: 10px; flex-shrink: 0; }
 
+    #lobby-gate, #lobby-panel { display: flex; flex-direction: column; gap: 14px; }
     .section-label { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3); }
 
     #player-list { display: flex; flex-direction: column; gap: 6px; min-height: 48px; }
@@ -139,7 +141,7 @@
     </div>
 
     <!-- Room panel: shown after WS connected -->
-    <div id="lobby-panel" hidden style="display:flex;flex-direction:column;gap:14px;">
+    <div id="lobby-panel" hidden>
       <div class="room-header">
         <span class="room-label">CÓDIGO DE SALA</span>
         <div class="room-code" id="room-code-display"></div>
