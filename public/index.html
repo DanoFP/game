@@ -388,8 +388,20 @@ function addBox(scene, x, y, z, w, h, d, mat) {
 
 function rnd(min, max) { return min + Math.random() * (max - min); }
 
+// Seeded RNG (mulberry32) — same seed → identical map layout for every client
+function seededRng(seed) {
+  return function() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // ── MAP: FIELD ────────────────────────────────────────────────────────────────
 function buildField(scene, { phys, wall, boundary, staircase }) {
+  const rand = seededRng(0xF1E1D0);
+  const r = (min, max) => min + rand() * (max - min);
   scene.background = new THREE.Color(0x87ceeb);
   scene.fog = new THREE.Fog(0x87ceeb, 60, 200);
 
@@ -422,10 +434,10 @@ function buildField(scene, { phys, wall, boundary, staircase }) {
   const woodMat   = new THREE.MeshLambertMaterial({ color: 0x9b6840 });
   for (let i = 0; i < 35; i++) {
     let tx, tz;
-    do { tx = rnd(-80, 80); tz = rnd(-80, 80); }
+    do { tx = r(-80, 80); tz = r(-80, 80); }
     while (Math.hypot(tx, tz) < 12);
 
-    const h = rnd(2, 5);
+    const h = r(2, 5);
     // Trunk: visible cylinder + box collider
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, h, 6), trunkMat);
     trunk.position.set(tx, h / 2, tz); trunk.castShadow = true;
@@ -433,7 +445,7 @@ function buildField(scene, { phys, wall, boundary, staircase }) {
     wall(tx, h / 2, tz, 0.4, h, 0.4);
 
     // Canopy (visual only)
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(rnd(1, 2), rnd(2.5, 4.5), 7), Math.random() > 0.4 ? leavesMat : dark);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r(1, 2), r(2.5, 4.5), 7), rand() > 0.4 ? leavesMat : dark);
     cone.position.set(tx, h + 1.5, tz); cone.castShadow = true;
     scene.add(cone);
 
@@ -446,7 +458,7 @@ function buildField(scene, { phys, wall, boundary, staircase }) {
   // Hay bales (collidable)
   const hayMat = new THREE.MeshLambertMaterial({ color: 0xc8a63a });
   for (let i = 0; i < 10; i++) {
-    phys(rnd(-60, 60), 0.45, rnd(-60, 60), 1.4, 0.9, 0.9, hayMat);
+    phys(r(-60, 60), 0.45, r(-60, 60), 1.4, 0.9, 0.9, hayMat);
   }
 
   // Fence (collidable)
@@ -464,6 +476,8 @@ function buildField(scene, { phys, wall, boundary, staircase }) {
 
 // ── MAP: CITY ────────────────────────────────────────────────────────────────
 function buildCity(scene, { phys, wall, boundary, staircase }) {
+  const rand = seededRng(0xC17220);
+  const r = (min, max) => min + rand() * (max - min);
   scene.background = new THREE.Color(0x05050f);
   scene.fog = new THREE.Fog(0x05050f, 30, 130);
 
@@ -504,20 +518,20 @@ function buildCity(scene, { phys, wall, boundary, staircase }) {
   for (const bx of GRID) {
     for (const bz of GRID) {
       if (Math.abs(bx) < 12 && Math.abs(bz) < 12) continue;
-      if (Math.random() < 0.15) continue;
+      if (rand() < 0.15) continue;
 
-      const w = rnd(5, 12); const h = rnd(6, 35); const d = rnd(5, 12);
-      const ox = rnd(-4, 4); const oz = rnd(-4, 4);
+      const w = r(5, 12); const h = r(6, 35); const d = r(5, 12);
+      const ox = r(-4, 4); const oz = r(-4, 4);
       const cx = bx + ox, cz = bz + oz;
-      const mat = buildingMats[Math.floor(Math.random() * buildingMats.length)];
+      const mat = buildingMats[Math.floor(rand() * buildingMats.length)];
       phys(cx, h / 2, cz, w, h, d, mat);
 
       // Windows (visual only)
-      const wm = Math.random() > 0.5 ? windowMat : windowMatB;
+      const wm = rand() > 0.5 ? windowMat : windowMatB;
       const floors = Math.floor(h / 2.5);
       for (let fl = 0; fl < floors; fl++) {
         for (let col = 0; col < 2; col++) {
-          if (Math.random() < 0.35) continue;
+          if (rand() < 0.35) continue;
           const win = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.5), wm);
           win.position.set(cx + w / 2 + 0.02, 1.5 + fl * 2.5, cz + (col - 0.5) * 1.8);
           win.rotation.y = -Math.PI / 2;
@@ -549,6 +563,8 @@ function buildCity(scene, { phys, wall, boundary, staircase }) {
 
 // ── MAP: SPACESHIP ────────────────────────────────────────────────────────────
 function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
+  const rand = seededRng(0x5FACE3);
+  const r = (min, max) => min + rand() * (max - min);
   scene.background = new THREE.Color(0x000008);
   scene.fog = new THREE.FogExp2(0x000008, 0.012);
 
@@ -558,10 +574,10 @@ function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
   // Stars
   const starVerts = [];
   for (let i = 0; i < 3000; i++) {
-    const r = rnd(150, 500);
-    const theta = rnd(0, Math.PI * 2);
-    const phi   = rnd(0, Math.PI);
-    starVerts.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+    const sr = r(150, 500);
+    const theta = r(0, Math.PI * 2);
+    const phi   = r(0, Math.PI);
+    starVerts.push(sr * Math.sin(phi) * Math.cos(theta), sr * Math.cos(phi), sr * Math.sin(phi) * Math.sin(theta));
   }
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
@@ -617,8 +633,8 @@ function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
 
   // Crates (collidable)
   for (let i = 0; i < 14; i++) {
-    const s = rnd(0.8, 1.8);
-    const cx = rnd(-12, 12); const cz = rnd(-12, 12);
+    const s = r(0.8, 1.8);
+    const cx = r(-12, 12); const cz = r(-12, 12);
     if (Math.abs(cx) < 4 && Math.abs(cz) < 4) continue;
     phys(cx, s / 2, cz, s, s, s, crateMat);
   }
@@ -632,7 +648,7 @@ function buildSpaceship(scene, { phys, wall, boundary, staircase }) {
     const panel = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 0.2), panelMat);
     panel.position.set(px, 1.8, pz); panel.rotation.y = ry; scene.add(panel);
     // Screens on panel
-    const sc = Math.random() > 0.5 ? screenMat : redMat;
+    const sc = rand() > 0.5 ? screenMat : redMat;
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.6), sc);
     screen.position.set(px + (ry === Math.PI/2 ? 0.11 : ry === -Math.PI/2 ? -0.11 : 0),
                         1.9,
